@@ -1,0 +1,60 @@
+services:
+  nats:
+    image: nats:2.10.16-alpine3.19
+    platform: linux/arm64
+    ports:
+      - "${NATS_PORT}:4222"
+    command: ["-js", "-m", "8222"]
+    networks:
+      - backend
+    healthcheck:
+      test: wget http://localhost:8222/healthz -q -S -O -
+      start_period: 3s
+      retries: 3
+      timeout: 3s
+      interval: 3s
+
+  gateway:
+    platform: linux/arm64
+    build: ./apps/gateway
+    environment:
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+      - GATEWAY_PORT=${GATEWAY_PORT}
+      - GATEWAY_IP=gateway
+      - GATEWAY_URL=http://gateway:${GATEWAY_PORT}
+      - NATS_PORT=${NATS_PORT}
+      - NATS_IP=nats
+      - NATS_URL=http://nats:${NATS_PORT}
+      - TTK_COLLECTOR_PORT=${TTK_COLLECTOR_PORT}
+      - TTK_COLLECTOR_IP=todo
+      - TTK_COLLECTOR_URL=http://todo:${TTK_COLLECTOR_PORT}
+      - FB_COLLECTOR_PORT=${FB_COLLECTOR_PORT}
+      - FB_COLLECTOR_IP=todo
+      - FB_COLLECTOR_URL=http://todo:${FB_COLLECTOR_PORT}
+    ports:
+      - "${GATEWAY_PORT}:3000"
+    depends_on:
+      nats:
+        condition: service_healthy
+    networks:
+      - backend
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  publisher:
+    image: andriiuni/events
+    platform: linux/arm64
+    environment:
+      - EVENT_ENDPOINT=http://gateway:3000/webhook
+    depends_on:
+      gateway:
+        condition: service_healthy
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge
