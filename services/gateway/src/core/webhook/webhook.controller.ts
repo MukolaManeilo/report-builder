@@ -5,12 +5,9 @@ import { pipeline } from 'stream/promises';
 import { parser } from 'stream-json';
 import { streamArray } from 'stream-json/streamers/StreamArray';
 import { Transform } from 'stream';
-
-interface Message {
-  value: {
-    source: string;
-  };
-}
+import { Event, EventSchema } from '@mukolamaneilo/event-types';
+import { ZodError } from 'zod';
+import { rethrow } from '@nestjs/core/helpers/rethrow';
 
 @Controller('webhook')
 export class WebhookController {
@@ -20,21 +17,23 @@ export class WebhookController {
   async createMessages(@Req() rawBody: RawBodyRequest<Request>, @Res() res: Response): Promise<void> {
     const messageProcessor = new Transform({
       objectMode: true,
-      transform(chunk: Message, _enc, callback): void {
+      transform(chunk: Event, _enc, callback): void {
         this.push(chunk);
         callback();
       },
     });
 
-    messageProcessor.on('data', (message: Message) => {
-      const topic = message.value.source;
-      if (!topic || !this.webhookService.isTopicValid(topic)) {
-        console.warn(`Invalid topic: ${topic}`);
-        return;
+    messageProcessor.on('data', (message: unknown) => {
+      try {
+        const validMessage: Event = EventSchema.parse(message);
+        this.webhookService.createMessage(validMessage).catch((err: Error) => rethrow(err.message));
+      } catch (error) {
+        if (error instanceof ZodError) {
+          console.warn('Validation failed:', error.errors);
+        } else {
+          console.error('Unknown error:', error);
+        }
       }
-      this.webhookService.createMessage(topic, message.value).catch((error) => {
-        console.error('Failed to send message:', error);
-      });
     });
 
     messageProcessor.on('error', (err) => {

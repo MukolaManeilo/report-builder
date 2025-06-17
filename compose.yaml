@@ -14,9 +14,57 @@ services:
       timeout: 3s
       interval: 3s
 
-  gateway:
+  postgres:
+    image: postgres:16-alpine
     platform: linux/arm64
-    build: ./apps/gateway
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: report
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  collector:
+    build: services/collectors
+    platform: linux/arm64
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/report
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+      - GATEWAY_PORT=${GATEWAY_PORT}
+      - GATEWAY_IP=gateway
+      - GATEWAY_URL=http://gateway:${GATEWAY_PORT}
+      - NATS_PORT=${NATS_PORT}
+      - NATS_IP=nats
+      - NATS_URL=http://nats:${NATS_PORT}
+      - TTK_COLLECTOR_PORT=${TTK_COLLECTOR_PORT}
+      - TTK_COLLECTOR_IP=todo
+      - TTK_COLLECTOR_URL=http://todo:${TTK_COLLECTOR_PORT}
+      - FB_COLLECTOR_PORT=${FB_COLLECTOR_PORT}
+      - FB_COLLECTOR_IP=todo
+      - FB_COLLECTOR_URL=http://todo:${FB_COLLECTOR_PORT}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    networks:
+      - backend
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:3002/health || exit 1" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  gateway:
+    build: services/gateway
+    platform: linux/arm64
     environment:
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
       - GATEWAY_PORT=${GATEWAY_PORT}
@@ -54,6 +102,9 @@ services:
         condition: service_healthy
     networks:
       - backend
+
+volumes:
+  pgdata:
 
 networks:
   backend:

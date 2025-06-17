@@ -1,0 +1,22 @@
+{
+  "name": "@mukolamaneilo/event-types",
+  "version": "1.4.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+	"dist"
+  ],
+  "scripts": {
+	"build": "tsc"
+  },
+  "publishConfig": {
+	"access": "public"
+  },
+  "license": "MIT",
+  "dependencies": {
+	"zod": "^3.25.64"
+  },
+  "devDependencies": {
+	"typescript": "^5.8.3"
+  }
+}
