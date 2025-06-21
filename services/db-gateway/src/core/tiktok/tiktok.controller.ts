@@ -1,22 +1,26 @@
 import { Controller, Post, Body, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { TiktokService } from './tiktok.service';
-import { TiktokEventSchema } from '@mukolamaneilo/event-types';
+import { TiktokEventSchema, TiktokEvent } from '@mukolamaneilo/event-types';
 import { ZodError } from 'zod';
 
-@Controller('facebook')
+@Controller('events/tiktok')
 export class TiktokController {
   constructor(private readonly tiktokService: TiktokService) {}
 
   @Post()
-  async createEvent(@Body() body: unknown) {
+  async create(@Body() body: TiktokEvent): Promise<{ id: number }> {
     try {
-      const parseResult = TiktokEventSchema.parse(body);
-      return this.tiktokService.create(parseResult);
-    } catch (error: any) {
+      const parsed = TiktokEventSchema.parse(body);
+      const id = await this.tiktokService.create(parsed);
+      return { id };
+    } catch (error) {
       if (error instanceof ZodError) {
-        throw new BadRequestException(error.format());
+        console.error('Validation failed:', error.format());
+        throw new BadRequestException('Invalid Tiktok event data');
+      } else {
+        console.error(error);
+        throw new InternalServerErrorException(error);
       }
-      throw new InternalServerErrorException(error);
     }
   }
 }

@@ -1,28 +1,26 @@
-import {
-  Controller,
-  Post,
-  Body,
-  BadRequestException,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { Controller, Post, Body, InternalServerErrorException, BadRequestException } from '@nestjs/common';
 import { FacebookService } from './facebook.service';
-import { FacebookEventSchema } from '@mukolamaneilo/event-types';
+import { FacebookEventSchema, FacebookEvent } from '@mukolamaneilo/event-types';
 import { ZodError } from 'zod';
 
-@Controller('facebook')
+@Controller('events/facebook')
 export class FacebookController {
   constructor(private readonly facebookService: FacebookService) {}
 
   @Post()
-  async createEvent(@Body() body: unknown) {
+  async create(@Body() body: FacebookEvent): Promise<{ id: number }> {
     try {
-      const parseResult = FacebookEventSchema.parse(body);
-      return this.facebookService.create(parseResult);
-    } catch (error: any) {
+      const parsed = FacebookEventSchema.parse(body);
+      const id = await this.facebookService.create(parsed);
+      return { id };
+    } catch (error) {
       if (error instanceof ZodError) {
-        throw new BadRequestException(error.format());
+        console.error('Validation failed:', error.format());
+        throw new BadRequestException('Invalid Facebook event data');
+      } else {
+        console.error(error);
+        throw new InternalServerErrorException(error);
       }
-      throw new InternalServerErrorException(error);
     }
   }
 }

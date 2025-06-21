@@ -1,6 +1,6 @@
 {
- "name": "@mukolamaneilo/event-types",
- "version": "1.8.0",
+ "name": "@mukolamaneilo/event-filters",
+ "version": "1.4.1",
  "main": "dist/index.js",
  "types": "dist/index.d.ts",
  "files": [
@@ -14,6 +14,7 @@
  },
  "license": "MIT",
  "dependencies": {
+  "@mukolamaneilo/event-types": "^1.8.0",
   "tsc": "^2.0.4",
   "zod": "^3.25.64"
  },

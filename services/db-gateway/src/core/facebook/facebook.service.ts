@@ -1,99 +1,96 @@
 import { Injectable } from '@nestjs/common';
+import { FacebookRepository } from './facebook.repository';
+import { FacebookMapper } from '../../common/mapper/facebook.mapper';
 import { FacebookEvent } from '@mukolamaneilo/event-types';
-import { PrismaService } from '../prisma/prisma.service';
-import { facebookEventTypeMap, genderMap } from '../../common/utils/enum-convert';
+import { DemographicsFacebook, FacebookEventsFilter, RevenueFilter } from '@mukolamaneilo/event-filters';
+import { facebookEventTypeMap, genderMap } from '../../common/mapper/enum.mapper';
 
 @Injectable()
 export class FacebookService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly repository: FacebookRepository) {}
 
-  async create(event: FacebookEvent): Promise<number> {
-    let location = await this.prisma.facebookUserLocation.findFirst({
-      where: {
-        country: event.data.user.location.country,
-        city: event.data.user.location.city,
-      },
-    });
+  async create(newEventDto: FacebookEvent): Promise<number> {
+    const { user, engagement } = newEventDto.data;
 
+    // Location
+    let location = await this.repository.findLocation(user.location.city, user.location.country);
     if (!location) {
-      location = await this.prisma.facebookUserLocation.create({
-        data: {
-          country: event.data.user.location.country,
-          city: event.data.user.location.city,
-        },
-      });
+      location = await this.repository.createLocation(user.location.city, user.location.country);
     }
 
-    let user = await this.prisma.facebookUser.findUnique({
-      where: { userId: event.data.user.userId },
-    });
+    // User
+    let dbUser = await this.repository.findUserByUserId(user.userId);
 
-    const dbGender = genderMap.toDB[event.data.user.gender];
-
-    if (!user) {
-      user = await this.prisma.facebookUser.create({
-        data: {
-          userId: event.data.user.userId,
-          name: event.data.user.name,
-          age: event.data.user.age,
-          gender: dbGender,
-          locationId: location.id,
-        },
-      });
+    if (!dbUser) {
+      const newDbUser = FacebookMapper.toDbUser(user, location.id);
+      dbUser = await this.repository.createUser(newDbUser);
     } else {
-      await this.prisma.facebookUser.update({
-        where: { id: user.id },
-        data: {
-          name: event.data.user.name,
-          age: event.data.user.age,
-          gender: dbGender,
-          locationId: location.id,
-        },
-      });
+      const updatedUser = FacebookMapper.toDbUser(user, location.id);
+      await this.repository.updateUser(dbUser.id, updatedUser);
     }
 
+    // Engagement
     let engagementTopId: number | undefined;
     let engagementBottomId: number | undefined;
 
-    if ('actionTime' in event.data.engagement) {
-      engagementTopId = (
-        await this.prisma.facebookEngagementTop.create({
-          data: {
-            actionTime: new Date(event.data.engagement.actionTime),
-            referrer: event.data.engagement.referrer,
-            videoId: event.data.engagement.videoId ?? null,
-          },
-        })
-      ).id;
+    if ('actionTime' in engagement) {
+      const engagementTop = FacebookMapper.toDbEngagementTop(engagement);
+      const top = await this.repository.createEngagementTop(engagementTop);
+      engagementTopId = top.id;
     } else {
-      // bottom engagement
-      engagementBottomId = (
-        await this.prisma.facebookEngagementBottom.create({
-          data: {
-            adId: event.data.engagement.adId,
-            campaignId: event.data.engagement.campaignId,
-            clickPosition: event.data.engagement.clickPosition,
-            device: event.data.engagement.device,
-            browser: event.data.engagement.browser,
-            purchaseAmount: event.data.engagement.purchaseAmount ?? null,
-          },
-        })
-      ).id;
+      const engagementBottom = FacebookMapper.toDbEngagementBottom(engagement);
+      const bottom = await this.repository.createEngagementBottom(engagementBottom);
+      engagementBottomId = bottom.id;
     }
 
-    const createdEvent = await this.prisma.facebookEvent.create({
-      data: {
-        eventId: event.eventId,
-        timestamp: new Date(event.timestamp),
-        source: 'facebook',
-        funnelStage: event.funnelStage,
-        eventType: facebookEventTypeMap.toDb[event.eventType],
-        userId: user.id,
-        engagementTopId,
-        engagementBottomId,
-      },
+    // Event
+    const newEvent = FacebookMapper.toDbEvent(newEventDto, dbUser.id, engagementTopId, engagementBottomId);
+    const created = await this.repository.createEvent(newEvent);
+
+    return created.id;
+  }
+
+  async getAggregatedEvents(filter: FacebookEventsFilter) {
+    const results = await this.repository.aggregateEvents({
+      from: new Date(filter.from),
+      to: new Date(filter.to),
+      funnelStage: filter.funnelStage,
+      eventType: facebookEventTypeMap.toDb[filter.eventType],
     });
 
-    return createdEvent.id;
+    return results.map((res) => ({
+      eventType: facebookEventTypeMap.fromDb[res.eventType],
+      funnelStage: res.funnelStage,
+      count: res._count._all,
+    }));
+  }
+
+  async getAggregatedRevenue(filter: RevenueFilter) {
+    const { from, to, campaignId } = filter;
+
+    return this.repository.aggregateRevenue({
+      from,
+      to,
+      campaignId: campaignId ?? '',
+    });
+  }
+
+  async getAggregatedDemographics(filter: DemographicsFacebook) {
+    const results = await this.repository.aggregatedDemographics({
+      from: new Date(filter.from),
+      to: new Date(filter.to),
+      age: filter.age,
+      gender: filter.gender ? genderMap.toDb[filter.gender] : undefined,
+      location: filter.location
+        ? {
+            OR: [{ city: filter.location }, { country: filter.location }],
+          }
+        : undefined,
+    });
+
+    return results.map((res) => ({
+      ...res,
+      gender: genderMap.fromDb[res.gender],
+    }));
   }
 }

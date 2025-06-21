@@ -1,13 +1,15 @@
+import { Gender } from '@prisma/client';
+
 export const genderMap = {
-  toDB: {
-    male: 'male',
-    female: 'female',
-    'non-binary': 'non_binary',
+  toDb: {
+    male: Gender.male,
+    female: Gender.female,
+    'non-binary': Gender.non_binary,
   },
-  fromDB: {
-    male: 'male',
-    female: 'female',
-    non_binary: 'non-binary',
+  fromDb: {
+    [Gender.male]: 'male',
+    [Gender.female]: 'female',
+    [Gender.non_binary]: 'non-binary',
   },
 } as const;
 

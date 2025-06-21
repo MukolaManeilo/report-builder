@@ -1,97 +1,136 @@
 import { z } from 'zod';
 
 
-const FunnelStageSchema = z.enum(["top", "bottom"]);
+export const FunnelStageSchema = z.enum(["top", "bottom"]);
+export type FunnelStage = z.infer<typeof FunnelStageSchema>;
+
+export const SourcesSchema = z.enum(["facebook", "tiktok"]);
+export type Sources = z.infer<typeof SourcesSchema>;
 
 // facebook types
- const FacebookTopEventType = z.enum(["ad.view", "page.like", "comment", "video.view"]);
- const FacebookBottomEventType = z.enum(["ad.click", "form.submission", "checkout.complete"]);
- const FacebookEventType = z.union([FacebookTopEventType, FacebookBottomEventType]);
+export const FacebookTopEventTypeSchema = z.enum(["ad.view", "page.like", "comment", "video.view"]);
+export type FacebookTopEventType = z.infer<typeof FacebookTopEventTypeSchema>;
+export const FacebookBottomEventTypeSchema = z.enum(["ad.click", "form.submission", "checkout.complete"]);
+export type FacebookBottomEventType = z.infer<typeof FacebookBottomEventTypeSchema>;
+export const FacebookEventTypeSchema = z.union([FacebookTopEventTypeSchema, FacebookBottomEventTypeSchema]);
+export type FacebookEventType = z.infer<typeof FacebookEventTypeSchema>;
+export const GenderSchema = z.enum(["male", "female", "non-binary"]);
+export type Gender = z.infer<typeof GenderSchema>;
 
- const FacebookUserLocationSchema = z.object({
+export const FacebookUserLocationSchema = z.object({
   country: z.string(),
   city: z.string(),
 });
+export type FacebookUserLocation = z.infer<typeof FacebookUserLocationSchema>;
 
- const FacebookUserSchema = z.object({
+export const FacebookUserSchema = z.object({
   userId: z.string(),
   name: z.string(),
   age: z.number(),
-  gender: z.enum(["male", "female", "non-binary"]),
+  gender: GenderSchema,
   location: FacebookUserLocationSchema,
 });
+export type FacebookUser = z.infer<typeof FacebookUserSchema>;
 
- const FacebookEngagementTopSchema = z.object({
+
+export const ReferrerSchema = z.enum(["newsfeed", "marketplace", "groups"]);
+export type Referrer = z.infer<typeof ReferrerSchema>;
+
+export const FacebookEngagementTopSchema = z.object({
   actionTime: z.string(),
-  referrer: z.enum(["newsfeed", "marketplace", "groups"]),
+  referrer: ReferrerSchema,
   videoId: z.string().nullable(),
 });
+export type FacebookEngagementTop = z.infer<typeof FacebookEngagementTopSchema>;
 
- const FacebookEngagementBottomSchema = z.object({
+export const ClickPositionSchema = z.enum(["top_left", "bottom_right", "center"]);
+export type ClickPosition = z.infer<typeof ClickPositionSchema>;
+
+export const FacebookEngagementBottomDeviceSchema = z.enum(["mobile", "desktop"]);
+export type Device = z.infer<typeof FacebookEngagementBottomDeviceSchema>;
+
+export const BrowserSchema = z.enum(["Chrome", "Firefox", "Safari"]);
+export type Browser = z.infer<typeof BrowserSchema>;
+
+export const FacebookEngagementBottomSchema = z.object({
   adId: z.string(),
   campaignId: z.string(),
-  clickPosition: z.enum(["top_left", "bottom_right", "center"]),
-  device: z.enum(["mobile", "desktop"]),
-  browser: z.enum(["Chrome", "Firefox", "Safari"]),
+  clickPosition: ClickPositionSchema,
+  device: FacebookEngagementBottomDeviceSchema,
+  browser: BrowserSchema,
   purchaseAmount: z.string().nullable(),
 });
+export type FacebookEngagementBottom = z.infer<typeof FacebookEngagementBottomSchema>;
 
- const FacebookEngagementSchema = z.union([
+export const FacebookEngagementSchema = z.union([
   FacebookEngagementTopSchema,
   FacebookEngagementBottomSchema,
 ]);
+export type FacebookEngagement = z.infer<typeof FacebookEngagementSchema>;
 
 export const FacebookEventSchema = z.object({
   eventId: z.string(),
   timestamp: z.string(),
   source: z.literal("facebook"),
   funnelStage: FunnelStageSchema,
-  eventType: FacebookEventType,
+  eventType: FacebookEventTypeSchema,
   data: z.object({
     user: FacebookUserSchema,
     engagement: FacebookEngagementSchema,
   }),
 });
-
 export type FacebookEvent = z.infer<typeof FacebookEventSchema>;
 
 //tiktok types:
- const TiktokTopEventType = z.enum(["video.view", "like", "share", "comment"]);
- const TiktokBottomEventType = z.enum(["profile.visit", "purchase", "follow"]);
- const TiktokEventType = z.union([TiktokTopEventType, TiktokBottomEventType]);
 
- const TiktokUserSchema = z.object({
+export const TiktokTopEventTypeSchema = z.enum(["video.view", "like", "share", "comment"]);
+export type TiktokTopEventType = z.infer<typeof TiktokTopEventTypeSchema>;
+export const TiktokBottomEventTypeSchema = z.enum(["profile.visit", "purchase", "follow"]);
+export type TiktokBottomEventType = z.infer<typeof TiktokBottomEventTypeSchema>;
+export const TiktokEventTypeSchema = z.union([TiktokTopEventTypeSchema, TiktokBottomEventTypeSchema]);
+export type TiktokEventType = z.infer<typeof TiktokEventTypeSchema>;
+
+
+export const TiktokUserSchema = z.object({
   userId: z.string(),
   username: z.string(),
   followers: z.number(),
 });
+export type TiktokUser = z.infer<typeof TiktokUserSchema>;
 
- const TiktokEngagementTopSchema = z.object({
+export const TiktokEngagementTopDeviceSchema = z.enum(["Android", "iOS", "Desktop"]);
+export type TiktokEngagementTopDevice = z.infer<typeof TiktokEngagementTopDeviceSchema>;
+
+
+export const TiktokEngagementTopSchema = z.object({
   watchTime: z.number(),
   percentageWatched: z.number(),
-  device: z.enum(["Android", "iOS", "Desktop"]),
+  device: TiktokEngagementTopDeviceSchema,
   country: z.string(),
   videoId: z.string(),
 });
+export type TiktokEngagementTop= z.infer<typeof TiktokEngagementTopSchema>;
 
- const TiktokEngagementBottomSchema = z.object({
+export const TiktokEngagementBottomSchema = z.object({
   actionTime: z.string(),
   profileId: z.string().nullable(),
   purchasedItem: z.string().nullable(),
   purchaseAmount: z.string().nullable(),
 });
+export type TiktokEngagementBottom = z.infer<typeof TiktokEngagementBottomSchema>;
 
- const TiktokEngagementSchema = z.union([
+export const TiktokEngagementSchema = z.union([
   TiktokEngagementTopSchema,
   TiktokEngagementBottomSchema,
 ]);
+export type TiktokEngagement = z.infer<typeof TiktokEngagementSchema>;
 
 export const TiktokEventSchema = z.object({
   eventId: z.string(),
   timestamp: z.string(),
   source: z.literal("tiktok"),
   funnelStage: FunnelStageSchema,
-  eventType: TiktokEventType,
+  eventType: TiktokEventTypeSchema,
   data: z.object({
     user: TiktokUserSchema,
     engagement: TiktokEngagementSchema,

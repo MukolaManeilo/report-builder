@@ -1,75 +1,90 @@
 import { Injectable } from '@nestjs/common';
-import { TiktokEvent } from '@mukolamaneilo/event-types';
-import { PrismaService } from '../prisma/prisma.service';
-import { tiktokEventTypeMap } from '../../common/utils/enum-convert';
+import { TiktokRepository } from './tiktok.repository';
+import { TiktokMapper } from '../../common/mapper/tiktok.mapper';
+import { TiktokEvent, FunnelStage, TiktokEventType } from '@mukolamaneilo/event-types';
+import { tiktokEventTypeMap } from '../../common/mapper/enum.mapper';
+import { DemographicsTiktok, RevenueFilter } from '@mukolamaneilo/event-filters';
 
 @Injectable()
 export class TiktokService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly repository: TiktokRepository) {}
 
-  async create(event: TiktokEvent): Promise<number> {
-    let user = await this.prisma.tiktokUser.findUnique({
-      where: { userId: event.data.user.userId },
-    });
+  async create(newEventDto: TiktokEvent): Promise<number> {
+    const { user, engagement } = newEventDto.data;
 
-    if (!user) {
-      user = await this.prisma.tiktokUser.create({
-        data: {
-          userId: event.data.user.userId,
-          username: event.data.user.username,
-          followers: event.data.user.followers,
-        },
-      });
+    // User
+    let dbUser = await this.repository.findUserByUserId(user.userId);
+
+    if (!dbUser) {
+      const newUser = TiktokMapper.toDbUser(user);
+      dbUser = await this.repository.createUser(newUser);
     } else {
-      await this.prisma.tiktokUser.update({
-        where: { id: user.id },
-        data: {
-          username: event.data.user.username,
-          followers: event.data.user.followers,
-        },
-      });
+      await this.repository.updateUser(dbUser.id, user);
     }
 
+    // Engagement
     let engagementTopId: number | undefined;
     let engagementBottomId: number | undefined;
 
-    if ('watchTime' in event.data.engagement) {
-      engagementTopId = (
-        await this.prisma.tiktokEngagementTop.create({
-          data: {
-            watchTime: event.data.engagement.watchTime,
-            percentageWatched: event.data.engagement.percentageWatched,
-            device: event.data.engagement.device,
-            country: event.data.engagement.country,
-            videoId: event.data.engagement.videoId,
-          },
-        })
-      ).id;
+    if ('watchTime' in engagement) {
+      const engagementTop = TiktokMapper.toDbEngagementTop(engagement);
+      const created = await this.repository.createEngagementTop(engagementTop);
+      engagementTopId = created.id;
     } else {
-      engagementBottomId = (
-        await this.prisma.tiktokEngagementBottom.create({
-          data: {
-            actionTime: new Date(event.data.engagement.actionTime),
-            profileId: event.data.engagement.profileId ?? null,
-            purchasedItem: event.data.engagement.purchasedItem ?? null,
-            purchaseAmount: event.data.engagement.purchaseAmount ?? null,
-          },
-        })
-      ).id;
+      const engagementBottom = TiktokMapper.toDbEngagementBottom(engagement);
+      const created = await this.repository.createEngagementBottom(engagementBottom);
+      engagementBottomId = created.id;
     }
 
-    const createdEvent = await this.prisma.tiktokEvent.create({
-      data: {
-        eventId: event.eventId,
-        timestamp: new Date(event.timestamp),
-        source: 'tiktok',
-        funnelStage: event.funnelStage,
-        eventType: tiktokEventTypeMap.toDb[event.eventType],
-        userId: user.id,
-        engagementTopId,
-        engagementBottomId,
-      },
-    });
+    // Event
+    const newEvent = TiktokMapper.toDbEvent(newEventDto, dbUser.id, engagementTopId, engagementBottomId);
+    const createdEvent = await this.repository.createEvent(newEvent);
+
     return createdEvent.id;
+  }
+
+  async getAggregatedEvents(filter: {
+    from: string;
+    to: string;
+    funnelStage: FunnelStage;
+    eventType: TiktokEventType;
+  }) {
+    const results = await this.repository.aggregateEvents({
+      from: filter.from,
+      to: filter.to,
+      funnelStage: filter.funnelStage,
+      eventType: tiktokEventTypeMap.toDb[filter.eventType],
+    });
+
+    return results.map((res) => ({
+      eventType: tiktokEventTypeMap.fromDb[res.eventType],
+      funnelStage: res.funnelStage,
+      count: res._count._all,
+    }));
+  }
+
+  async getAggregatedRevenue(filter: RevenueFilter) {
+    const { from, to } = filter;
+
+    return this.repository.aggregateRevenue({
+      from,
+      to,
+    });
+  }
+
+  async getAggregatedDemographics(filter: DemographicsTiktok) {
+    const results = await this.repository.aggregatedDemographics({
+      from: new Date(filter.from),
+      to: new Date(filter.to),
+      followers: filter.followers,
+      country: filter.country,
+      device: filter.device,
+    });
+
+    return results.map((res) => ({
+      followers: res.followers,
+      count: res._count._all,
+      avgFollowers: res._avg?.followers ?? null,
+    }));
   }
 }

@@ -2,6 +2,14 @@
 # yarn lockfile v1
 
 
+"@mukolamaneilo/event-types@^1.7.0":
+  version "1.8.0"
+  resolved "https://registry.yarnpkg.com/@mukolamaneilo/event-types/-/event-types-1.8.0.tgz#bf475de2d25704afdf711f7522bbe0e5bf47297d"
+  integrity sha512-pPrJ56s5Fut6mRqKAmNPQUm/qQrIflVGpWf+yckaVF8ZBX5daCviplbbsmcWJ0DBo1qde2xctS+Fvdy8CgvXJw==
+  dependencies:
+    tsc "^2.0.4"
+    zod "^3.25.64"
+
 tsc@^2.0.4:
   version "2.0.4"
   resolved "https://registry.yarnpkg.com/tsc/-/tsc-2.0.4.tgz#5f6499146abea5dca4420b451fa4f2f9345238f5"
@@ -13,6 +21,6 @@ typescript@^5.8.3:
   integrity sha512-p1diW6TqL9L07nNxvRMM7hMMw4c5XOo/1ibL4aAIGmSAt9slTE1Xgw5KWuof2uTOvCg9BY7ZRi+GaF+7sfgPeQ==
 
 zod@^3.25.64:
-  version "3.25.64"
-  resolved "https://registry.yarnpkg.com/zod/-/zod-3.25.64.tgz#57b5c7e76dd64e447f7e710285fcdb396b32f803"
-  integrity sha512-hbP9FpSZf7pkS7hRVUrOjhwKJNyampPgtXKc3AN6DsWtoHsg2Sb4SQaS4Tcay380zSwd2VPo9G9180emBACp5g==
+  version "3.25.67"
+  resolved "https://registry.yarnpkg.com/zod/-/zod-3.25.67.tgz#62987e4078e2ab0f63b491ef0c4f33df24236da8"
+  integrity sha512-idA2YXwpCdqUSKRCACDE6ItZD9TZzy3OZMtpfLoh6oPR47lipysRrJfjzMqFxQ3uJuUPyUeWe1r9vLH33xO/Qw==
