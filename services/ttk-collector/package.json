@@ -1,5 +1,5 @@
 {
-  "name": "db-gateway",
+  "name": "ttk-collectors",
   "version": "0.0.1",
   "description": "",
   "author": "",
@@ -20,14 +20,15 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
-    "@mukolamaneilo/event-filters": "^1.4.1",
-    "@mukolamaneilo/event-types": "^1.8.0",
+    "@mukolamaneilo/event-types": "^1.4.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
+    "@nestjs/mapped-types": "*",
     "@nestjs/platform-express": "^11.0.1",
-    "@prisma/client": "^6.9.0",
+    "nats": "^2.29.3",
     "reflect-metadata": "^0.2.2",
+    "remove": "^0.1.5",
     "rxjs": "^7.8.1",
     "zod": "^3.25.64"
   },
@@ -37,6 +38,7 @@
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",
+    "@prisma/client": "^6.9.0",
     "@swc/cli": "^0.6.0",
     "@swc/core": "^1.10.7",
     "@types/express": "^5.0.0",

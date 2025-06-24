@@ -1,0 +1,54 @@
+import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
+import { connect, StringCodec, NatsConnection, Subscription } from 'nats';
+import { EventHandlerService } from '../event-handler/event-handler.service';
+import { ConfigService } from '@nestjs/config';
+
+@Injectable()
+export class NatsListenerService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(NatsListenerService.name);
+  private nc?: NatsConnection;
+  private sub?: Subscription;
+
+  constructor(
+    private readonly eventHandlerService: EventHandlerService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  async onModuleInit() {
+    const natsUrl = this.configService.get<string>('nats.url');
+    if (!natsUrl) {
+      this.logger.error('❌ NATS URL is not configured!');
+      return;
+    }
+
+    try {
+      this.nc = await connect({ servers: [natsUrl] });
+      const sc = StringCodec();
+
+      this.sub = this.nc.subscribe('tiktok');
+      this.logger.log(`✅ Subscribed to topic "tiktok" at ${natsUrl}`);
+
+      for await (const msg of this.sub) {
+        try {
+          const data: unknown = JSON.parse(sc.decode(msg.data));
+          await this.eventHandlerService.eventHandler(data);
+        } catch (err: unknown) {
+          this.logger.error('❌ Failed to process message', err instanceof Error ? err.stack : String(err));
+        }
+      }
+    } catch (error: unknown) {
+      this.logger.error(
+        `❌ Failed to connect to NATS at ${natsUrl}`,
+        error instanceof Error ? error.stack : error,
+      );
+      throw error;
+    }
+  }
+
+  async onModuleDestroy() {
+    if (this.nc) {
+      await this.nc.drain();
+      this.logger.log('🔌 Disconnected from NATS');
+    }
+  }
+}
