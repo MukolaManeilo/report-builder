@@ -7,7 +7,7 @@ export default (): object => ({
     url: process.env.NATS_URL,
   },
   ttkCollector: {
-    port: 3000,
+    port: parseInt(process.env.TTK_COLLECTOR_PORT!, 10),
     host: process.env.TTK_COLLECTOR_HOST,
     url: process.env.TTK_COLLECTOR_URL,
   },

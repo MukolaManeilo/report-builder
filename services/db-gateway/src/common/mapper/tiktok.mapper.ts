@@ -74,7 +74,7 @@ export class TiktokMapper {
 
   static toDbEngagementBottom(engagement: TiktokEngagementBottom) {
     return {
-      actionTime: new Date(typeof engagement.actionTime),
+      actionTime: new Date(engagement.actionTime),
       profileId: engagement.profileId ?? null,
       purchasedItem: engagement.purchasedItem ?? null,
       purchaseAmount: engagement.purchaseAmount ?? null,

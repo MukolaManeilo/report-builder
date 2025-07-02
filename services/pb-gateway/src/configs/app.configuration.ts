@@ -2,9 +2,9 @@ import * as process from 'node:process';
 
 export default (): object => ({
   pbGateway: {
-    port: 3000,
-    host: process.env.GATEWAY_HOST,
-    url: process.env.GATEWAY_URL,
+    port: parseInt(process.env.PB_GATEWAY_PORT!, 10),
+    host: process.env.PB_GATEWAY_HOST,
+    url: process.env.PB_GATEWAY_URL,
     allowedOrigins: process.env.ALLOWED_ORIGINS,
   },
   nats: {

@@ -26,8 +26,21 @@ export class NatsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async publishToJetStream(subject: string, data: object): Promise<void> {
-    const payload = this.sc.encode(JSON.stringify(data));
-    await this.js.publish(subject, payload);
+    if (!this.js) {
+      this.logger.error(`❌ JetStream not connected for "${subject}"`);
+      return;
+    }
+    try {
+      await Promise.race([
+        this.js.publish(subject, this.sc.encode(JSON.stringify(data))),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000)),
+      ]);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (error: unknown) {
+      // this.logger.error(
+      //   `❌ Failed to publish "${subject}": ${error instanceof Error ? error.message : error}`,
+      // );
+    }
   }
 
   async onModuleDestroy(): Promise<void> {

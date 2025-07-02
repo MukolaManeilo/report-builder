@@ -8,6 +8,7 @@ export class NatsListenerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(NatsListenerService.name);
   private nc?: NatsConnection;
   private sub?: Subscription;
+  private readonly eventSource: string = 'tiktok';
 
   constructor(
     private readonly eventHandlerService: EventHandlerService,
@@ -24,24 +25,32 @@ export class NatsListenerService implements OnModuleInit, OnModuleDestroy {
     try {
       this.nc = await connect({ servers: [natsUrl] });
       const sc = StringCodec();
+      this.sub = this.nc.subscribe(this.eventSource);
+      this.logger.log(`✅ Subscribed to topic "${this.eventSource}" at ${natsUrl}`);
 
-      this.sub = this.nc.subscribe('tiktok');
-      this.logger.log(`✅ Subscribed to topic "tiktok" at ${natsUrl}`);
-
-      for await (const msg of this.sub) {
-        try {
-          const data: unknown = JSON.parse(sc.decode(msg.data));
-          await this.eventHandlerService.eventHandler(data);
-        } catch (err: unknown) {
-          this.logger.error('❌ Failed to process message', err instanceof Error ? err.stack : String(err));
-        }
-      }
+      void this.processMessages(sc);
     } catch (error: unknown) {
       this.logger.error(
         `❌ Failed to connect to NATS at ${natsUrl}`,
-        error instanceof Error ? error.stack : error,
+        error instanceof Error ? error.stack : String(error),
       );
       throw error;
+    }
+  }
+
+  private async processMessages(sc: ReturnType<typeof StringCodec>) {
+    if (!this.sub) {
+      this.logger.error('❌ No subscription available for processing messages');
+      return;
+    }
+
+    for await (const msg of this.sub) {
+      try {
+        const data: unknown = JSON.parse(sc.decode(msg.data));
+        await this.eventHandlerService.eventHandler(data);
+      } catch (err: unknown) {
+        this.logger.error('❌ Failed to process message', err instanceof Error ? err.stack : String(err));
+      }
     }
   }
 

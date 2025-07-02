@@ -2,10 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TiktokEventSchema, TiktokEvent } from '@mukolamaneilo/event-types';
 
-interface CreateResponse {
-  id: number;
-}
-
 @Injectable()
 export class EventHandlerService {
   private readonly logger = new Logger(EventHandlerService.name);
@@ -20,7 +16,6 @@ export class EventHandlerService {
       const event: TiktokEvent = TiktokEventSchema.parse(eventData);
 
       await this.saveEventToDb(event);
-      this.logger.log(`Event ${event.eventId} processed and saved`);
     } catch (error) {
       this.logger.error('Failed to validate or save event', error);
     }
@@ -34,8 +29,5 @@ export class EventHandlerService {
       body: JSON.stringify(event),
     });
     if (!res.ok) throw new Error(`Failed to save event: ${res.status}`);
-
-    const data = (await res.json()) as CreateResponse;
-    this.logger.log(`Saved TikTok event with id ${data.id}`);
   }
 }

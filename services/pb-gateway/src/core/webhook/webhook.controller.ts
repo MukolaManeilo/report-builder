@@ -14,7 +14,7 @@ interface Message {
   value: Event;
 }
 
-@Controller('webhook')
+@Controller('reportsProxyModule')
 export class WebhookController {
   constructor(private readonly webhookService: WebhookService) {}
 

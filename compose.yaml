@@ -2,8 +2,6 @@ services:
   nats:
     image: nats:2.10.16-alpine3.19
     platform: linux/arm64
-    ports:
-      - "${NATS_PORT}:8222"
     command: ["-js", "-m", "8222"]
     networks:
       - backend
@@ -14,11 +12,10 @@ services:
       timeout: 3s
       interval: 3s
 
+
   postgres:
     image: postgres:16-alpine
     platform: linux/arm64
-    ports:
-      - "${DB_PORT}:5432"
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
@@ -27,15 +24,18 @@ services:
       - pgdata:/var/lib/postgresql/data
     networks:
       - backend
+    ports:
+      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
       interval: 5s
       timeout: 3s
       retries: 5
 
+
   ttk-collector:
     build: services/ttk-collector
-    platform: linux/arm64
+#    platform: linux/arm64
     environment:
       - DB_GATEWAY_PORT=${DB_GATEWAY_PORT}
       - DB_GATEWAY_HOST=db-gateway
@@ -46,8 +46,6 @@ services:
       - TTK_COLLECTOR_PORT=${TTK_COLLECTOR_PORT}
       - TTK_COLLECTOR_HOST=ttk-collector
       - TTK_COLLECTOR_URL=http://ttk-collector:${TTK_COLLECTOR_PORT}
-    ports:
-      - "${TTK_COLLECTOR_PORT}:3000"
     depends_on:
       db-gateway:
         condition: service_healthy
@@ -56,14 +54,15 @@ services:
     networks:
       - backend
     healthcheck:
-      test: [ "CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1" ]
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:${TTK_COLLECTOR_PORT}/health || exit 1" ]
       interval: 5s
       timeout: 3s
       retries: 5
 
+
   fb-collector:
     build: services/fb-collector
-    platform: linux/arm64
+#    platform: linux/arm64
     environment:
       - DB_GATEWAY_PORT=${DB_GATEWAY_PORT}
       - DB_GATEWAY_HOST=db-gateway
@@ -74,8 +73,6 @@ services:
       - FB_COLLECTOR_PORT=${FB_COLLECTOR_PORT}
       - FB_COLLECTOR_HOST=fb-collector
       - FB_COLLECTOR_URL=http://fb-collector:${FB_COLLECTOR_PORT}
-    ports:
-      - "${FB_COLLECTOR_PORT}:3000"
     depends_on:
       db-gateway:
         condition: service_healthy
@@ -84,14 +81,15 @@ services:
     networks:
       - backend
     healthcheck:
-      test: [ "CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1" ]
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:${FB_COLLECTOR_PORT}/health || exit 1" ]
       interval: 5s
       timeout: 3s
       retries: 5
 
+
   pb-gateway:
     build: services/pb-gateway
-    platform: linux/arm64
+#    platform: linux/arm64
     environment:
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
       - PB_GATEWAY_PORT=${PB_GATEWAY_PORT}
@@ -107,7 +105,7 @@ services:
       - FB_COLLECTOR_HOST=fb-collector
       - FB_COLLECTOR_URL=http://fb-collector:${FB_COLLECTOR_PORT}
     ports:
-      - "${DB_GATEWAY_PORT}:3000"
+      - "${PB_GATEWAY_PORT}:${PB_GATEWAY_PORT}"
     depends_on:
       fb-collector:
         condition: service_healthy
@@ -118,14 +116,15 @@ services:
     networks:
       - backend
     healthcheck:
-      test: [ "CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1" ]
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:${PB_GATEWAY_PORT}/health || exit 1" ]
       interval: 5s
       timeout: 3s
       retries: 5
 
+
   db-gateway:
     build: services/db-gateway
-    platform: linux/arm64
+#    platform: linux/arm64
     environment:
       - DB_GATEWAY_PORT=${DB_GATEWAY_PORT}
       - DB_GATEWAY_HOST=db-gateway
@@ -136,32 +135,59 @@ services:
       - DB_PORT=${DB_PORT}
       - DB_HOST=postgres
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres:${DB_PORT}/${DB_NAME}
-    ports:
-      - "${DB_GATEWAY_PORT}:3000"
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - backend
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1" ]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${DB_GATEWAY_PORT}/health || exit 1" ]
       interval: 5s
       timeout: 3s
       retries: 5
+    command: sh -c "npx prisma migrate deploy && node dist/main.js"
+
+
+  reporter:
+    build: services/reporter
+    #    platform: linux/arm64
+    environment:
+      - REPORTER_PORT=${REPORTER_PORT}
+      - REPORTER_HOST=reporter
+      - REPORTER_URL=http://reporter:${REPORTER_PORT}
+
+      - DB_GATEWAY_HOST=db-gateway
+      - DB_GATEWAY_PORT=${DB_GATEWAY_PORT}
+      - DB_GATEWAY_URL=http://db-gateway:${DB_GATEWAY_PORT}
+    depends_on:
+      db-gateway:
+        condition: service_healthy
+    networks:
+      - backend
+    ports:
+      - "${REPORTER_PORT}:${REPORTER_PORT}"
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:${REPORTER_PORT}/health || exit 1" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
 
   publisher:
     image: andriiuni/events
     platform: linux/arm64
     environment:
-      - EVENT_ENDPOINT=http://pb-gateway:${PB_GATEWAY_PORT}/webhook
+      - EVENT_ENDPOINT=http://pb-gateway:${PB_GATEWAY_PORT}/reportsProxyModule
     depends_on:
       pb-gateway:
         condition: service_healthy
     networks:
       - backend
 
+
 volumes:
   pgdata:
+
 
 networks:
   backend:

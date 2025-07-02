@@ -7,7 +7,7 @@ export default (): object => ({
     url: process.env.NATS_URL,
   },
   fbCollector: {
-    port: 3000,
+    port: parseInt(process.env.FB_COLLECTOR_PORT!, 10),
     host: process.env.FB_COLLECTOR_HOST,
     url: process.env.FB_COLLECTOR_URL,
   },
